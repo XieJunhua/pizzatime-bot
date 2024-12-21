@@ -1,6 +1,31 @@
 import axios from 'axios';
 import { gunzipSync } from 'zlib';
 import fs from 'fs';
+import { AddressHistoryManager } from './addressHistory';
+
+const addressHistory = new AddressHistoryManager();
+let isWarmupPeriod = true;  // 添加预热标志
+
+export async function initGasMonitoring() {
+    await addressHistory.init();
+
+    // 添加预热逻辑
+    console.log('Starting warmup period...');
+    const warmupData = await fetchGasData();
+    await addressHistory.updateAddresses(
+        warmupData.map((item: any) => ({
+            address: item.address,
+            title: item.title
+        }))
+    );
+
+    // 5分钟后结束预热期
+    setTimeout(() => {
+        isWarmupPeriod = false;
+        console.log('Warmup period completed');
+    }, 5 * 60 * 1000);
+}
+
 export async function fetchGasData() {
     try {
         const url = "https://etherscan.io/datasourceHandler?q=gasguzzler&draw=3&columns%5B0%5D%5Bdata%5D=rank&columns%5B0%5D%5Bname%5D=&columns%5B0%5D%5Bsearchable%5D=true&columns%5B0%5D%5Borderable%5D=false&columns%5B0%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B0%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B1%5D%5Bdata%5D=address&columns%5B1%5D%5Bname%5D=&columns%5B1%5D%5Bsearchable%5D=true&columns%5B1%5D%5Borderable%5D=false&columns%5B1%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B1%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B2%5D%5Bdata%5D=txfee_3h&columns%5B2%5D%5Bname%5D=&columns%5B2%5D%5Bsearchable%5D=true&columns%5B2%5D%5Borderable%5D=true&columns%5B2%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B2%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B3%5D%5Bdata%5D=gasused_3h&columns%5B3%5D%5Bname%5D=&columns%5B3%5D%5Bsearchable%5D=true&columns%5B3%5D%5Borderable%5D=true&columns%5B3%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B3%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B4%5D%5Bdata%5D=txfee_24h&columns%5B4%5D%5Bname%5D=&columns%5B4%5D%5Bsearchable%5D=true&columns%5B4%5D%5Borderable%5D=true&columns%5B4%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B4%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B5%5D%5Bdata%5D=gasused_24h&columns%5B5%5D%5Bname%5D=&columns%5B5%5D%5Bsearchable%5D=true&columns%5B5%5D%5Borderable%5D=true&columns%5B5%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B5%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B6%5D%5Bdata%5D=analytics&columns%5B6%5D%5Bname%5D=&columns%5B6%5D%5Bsearchable%5D=true&columns%5B6%5D%5Borderable%5D=false&columns%5B6%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B6%5D%5Bsearch%5D%5Bregex%5D=false&order%5B0%5D%5Bcolumn%5D=2&order%5B0%5D%5Bdir%5D=desc&start=0&length=50&search%5Bvalue%5D=&search%5Bregex%5D=false"
@@ -82,6 +107,35 @@ export async function getCurrentGasPrice() {
     }
 }
 
+export async function detectAbnormalAddresses(gasData: any[]) {
+    // 更新地址历史
+    await addressHistory.updateAddresses(
+        gasData.map(item => ({
+            address: item.address,
+            title: item.title
+        }))
+    );
+
+    // 如果在预热期间，不报告异常
+    if (isWarmupPeriod) {
+        console.log('Still in warmup period, skipping abnormal address detection');
+        return [];
+    }
+
+    // 筛选出不常见的高消耗地址
+    const abnormalAddresses = gasData
+        .slice(0, 10)
+        .filter(item => addressHistory.isAddressUncommon(item.address))
+        .map(item => ({
+            address: item.address,
+            title: item.title,
+            txFee3h: item.txFee3h,
+            txFee24h: item.txFee24h
+        }));
+
+    return abnormalAddresses;
+}
+
 // 调用函数
-fetchGasData();
+// fetchGasData();
 // console.log(await getCurrentGasPrice());
