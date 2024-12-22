@@ -79,7 +79,7 @@ export async function fetchGasData(retryCount = 3) {
         const gasGuzzlers = data.data;
         // fs.writeFileSync('gas-result.json', JSON.stringify(gasGuzzlers, null, 2));
 
-        console.log('Gas 消耗排名:');
+        // console.log('Gas 消耗排名:');
         const formattedGuzzlers = gasGuzzlers.map((guzzler: any, index: number) => {
             const addressMatch = guzzler.address.match(/address\/([^']+)/);
             const address = addressMatch ? addressMatch[1] : 'Address not found';
@@ -97,7 +97,7 @@ export async function fetchGasData(retryCount = 3) {
             };
         });
 
-        console.log(formattedGuzzlers);
+        // console.log(formattedGuzzlers);
 
         return formattedGuzzlers;
 
@@ -162,6 +162,8 @@ export async function detectAbnormalAddresses(gasData: any[]) {
             txFee3h: item.txFee3h,
             txFee24h: item.txFee24h
         }));
+
+    console.log('Abnormal addresses detected:', abnormalAddresses);
 
     return abnormalAddresses;
 }

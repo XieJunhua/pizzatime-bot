@@ -11,6 +11,9 @@ const CHAT_ID = process.env.CHAT_ID as string; // Replace with your chat ID
 
 const gasPriceHistory = new GasPriceHistory();
 
+// 添加初始化标志
+let isInitialized = false;
+
 async function monitorGas() {
     try {
         const gasData = await fetchGasData();
@@ -28,7 +31,7 @@ async function monitorGas() {
 
             if (currentGasPrice > avgGasPrice * threshold) {
                 const percentageIncrease = ((currentGasPrice - avgGasPrice) / avgGasPrice * 100).toFixed(2);
-                const message = `⚠️ Gas 价格异常上涨！\n` +
+                const message = `🚨 Gas 价格异常上涨！\n` +
                     `当前价格: ${currentGasPrice} Gwei\n` +
                     `30分钟平均价格: ${avgGasPrice.toFixed(2)} Gwei\n` +
                     `涨幅: ${percentageIncrease}%\n` +
@@ -50,10 +53,10 @@ async function monitorGas() {
         }
 
         // Gas 价格监控逻辑保持不变
-        if (currentGasPrice > 10) {
-            const message = `⚠️ Gas 价格提醒\n当前价格: ${currentGasPrice} Gwei\n时间: ${new Date().toLocaleString()}`;
-            await bot.api.sendMessage(CHAT_ID, message);
-        }
+        // if (currentGasPrice > 10) {
+        //     const message = `🚨 Gas 价格提醒\n当前价格: ${currentGasPrice} Gwei\n时间: ${new Date().toLocaleString()}`;
+        //     await bot.api.sendMessage(CHAT_ID, message);
+        // }
 
         console.log('Gas monitoring running successfully');
     } catch (error) {
@@ -71,6 +74,12 @@ async function monitorGas() {
 
 // 添加初始化函数
 async function initialize() {
+    // 防止重复初始化
+    if (isInitialized) {
+        console.log('Gas monitoring already initialized');
+        return;
+    }
+
     try {
         await initGasMonitoring();
         await gasPriceHistory.load(); // 加载历史数据
@@ -79,13 +88,20 @@ async function initialize() {
         // 初始化成功后才开始定时监控
         setInterval(monitorGas, 30000);
         monitorGas();
+
+        // 设置初始化标志
+        isInitialized = true;
     } catch (error) {
         console.error('Failed to initialize gas monitoring:', error);
         process.exit(1);
     }
 }
 
-
+// 修改启动逻辑
+async function startBot() {
+    await initialize();
+    await bot.start();
+}
 
 bot.command('status', async (ctx) => {
     try {
@@ -101,8 +117,7 @@ bot.command('status', async (ctx) => {
     }
 });
 
-// 启动程序
-initialize();
-bot.start();
+// 使用新的启动函数
+startBot();
 
 
