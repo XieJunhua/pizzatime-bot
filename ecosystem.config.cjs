@@ -3,14 +3,16 @@ module.exports = {
     {
       name: "pizzatime-bot",
       script: "bun",
-      args: "src/index.ts",
+      args: "run src/index.ts",
       watch: true,
-      // 如果需要在崩溃时自动重启
       autorestart: true,
-      // 设置环境变量
+      max_restarts: 10,
+      min_uptime: "5s",
       env: {
         NODE_ENV: "production",
       },
+      error_file: "logs/err.log",
+      out_file: "logs/out.log",
     },
   ],
 };
