@@ -2,9 +2,14 @@ import axios from 'axios';
 import { gunzipSync } from 'zlib';
 import fs from 'fs';
 import { AddressHistoryManager } from './addressHistory';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const addressHistory = new AddressHistoryManager();
 let isWarmupPeriod = true;  // 添加预热标志
+
+const RPC_URL = process.env.RPC_URL || '';
 
 export async function initGasMonitoring() {
     await addressHistory.init();
@@ -115,7 +120,7 @@ export async function fetchGasData(retryCount = 3) {
 
 export async function getCurrentGasPrice() {
     try {
-        const response = await axios.post('https://practical-silent-dawn.quiknode.pro/7248e701127f7d51657c065cbf133899a53028d2/', {
+        const response = await axios.post(RPC_URL, {
             method: 'eth_gasPrice',
             params: [],
             id: 1,
